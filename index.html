@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>🔍</text></svg>">
+<title>Encuesta · ¿qué dice el texto y quién lo dice?</title>
+<style>
+  :root { --ink:#1a1a1a; --mut:#667; --bg:#f6f5f2; --card:#fff; --acc:#1a56db; --ok:#0a7d33; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Georgia,'Times New Roman',serif; background:var(--bg); color:var(--ink); line-height:1.5; }
+  main { max-width:640px; margin:0 auto; padding:16px; }
+  h1 { font-size:1.35rem; margin:.2em 0 .4em; }
+  h2 { font-size:1.1rem; }
+  .card { background:var(--card); border:1px solid #e2e0da; border-radius:10px; padding:16px; margin:12px 0; }
+  .titular { font-size:1.25rem; font-weight:bold; margin:0 0 .5em; }
+  .extracto { font-style:italic; color:#333; border-left:3px solid #d8d5cc; padding-left:12px; margin:10px 0; }
+  .meta { color:var(--mut); font-size:.85rem; }
+  .badge { display:inline-block; background:#fff3cd; border:1px solid #e6d9a2; color:#6b5308; font-size:.78rem; padding:2px 8px; border-radius:999px; margin-bottom:8px; font-family:sans-serif; }
+  .q { margin:14px 0 4px; font-family:sans-serif; font-size:.92rem; font-weight:600; }
+  label.opt { display:block; background:#fafaf8; border:1px solid #e2e0da; border-radius:8px; padding:10px 12px; margin:6px 0; cursor:pointer; font-family:sans-serif; font-size:.92rem; }
+  label.opt:has(input:checked) { border-color:var(--acc); background:#eef4ff; }
+  input[type=radio] { margin-right:8px; }
+  button { font-family:sans-serif; font-size:1rem; background:var(--acc); color:#fff; border:0; border-radius:8px; padding:12px 18px; cursor:pointer; width:100%; margin-top:12px; }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  button.sec { background:#fff; color:var(--acc); border:1px solid var(--acc); }
+  .bar { height:6px; background:#e5e3dd; border-radius:3px; overflow:hidden; margin:10px 0; }
+  .bar i { display:block; height:100%; background:var(--acc); }
+  .prog { font-family:sans-serif; font-size:.8rem; color:var(--mut); text-align:center; }
+  input[type=text], select { width:100%; font-family:sans-serif; font-size:1rem; padding:10px; border:1px solid #cfcdba; border-radius:8px; margin:4px 0 10px; }
+  textarea { width:100%; height:110px; font-family:monospace; font-size:.75rem; }
+  .note { font-family:sans-serif; font-size:.8rem; color:var(--mut); }
+  .sent { text-align:center; }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script src="items.js"></script>
+<script>
+// Orden estable por persona (semilla = apodo), distinto entre personas.
+function seedFrom(s){let h=2166136261;for(const c of s){h^=c.codePointAt(0);h=Math.imul(h,16777619)>>>0;}return h;}
+function shuffle(arr,seed){const r=mulberry(seed),a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+const QS = [
+ {k:'dueno', t:'¿Te dicen quién sostiene lo que se afirma, o va sin dueño?',
+  o:['Sí, con dueño (lo dice alguien citado o una fuente)','No, sin dueño (lo afirma el propio texto)','No se puede saber']},
+ {k:'certeza', t:'¿Titular y texto transmiten la misma seguridad?',
+  o:['Sí, la misma','El titular suena más seguro que el texto','El texto suena más seguro que el titular','No se puede saber']},
+ {k:'valoracion', t:'¿Ves valoraciones presentadas como si fueran información?',
+  o:['Sí','No','No se puede saber']},
+];
+
+const app = document.getElementById('app');
+let state = null;
+
+function save(){ if(state) localStorage.setItem('nivel_encuesta', JSON.stringify(state)); }
+function load(){ try{ return JSON.parse(localStorage.getItem('nivel_encuesta')); }catch(e){ return null; } }
+
+function intro(){
+  app.innerHTML = `
+  <div class="card">
+    <h1>¿Qué dice el texto y quién lo dice?</h1>
+    <p>Esto no es un test con respuestas correctas: marcamos cómo está escrito lo que leemos.
+    Verás <b>titulares reales de prensa española</b> (con su extracto) y, al principio,
+    tres <b>ejemplos de práctica inventados</b> para coger el tranquillo.</p>
+    <p>Para cada texto, tres preguntas rápidas. No hay prisa ni respuestas buenas o malas:
+    vale tu lectura honesta.</p>
+    <p class="note">Anonimato: no se piden datos personales. Tus respuestas viven solo en
+    este navegador hasta que las exportes al final. Al enviarlas aceptas que se usen de
+    forma anónima en un proyecto de investigación (TFG, medición de estructura informativa).</p>
+    <label class="q">Tu apodo (sin datos reales, ej: lector11)</label>
+    <input type="text" id="nick" maxlength="24" placeholder="apodo">
+    <label class="q">¿Con qué frecuencia lees noticias?</label>
+    <select id="freq">
+      <option value="">elige una…</option>
+      <option value="diaria">A diario</option>
+      <option value="semanal">Varias veces por semana</option>
+      <option value="a veces">De vez en cuando</option>
+    </select>
+    <button id="start">Empezar</button>
+  </div>`;
+  document.getElementById('start').onclick = () => {
+    const nick = document.getElementById('nick').value.trim();
+    const freq = document.getElementById('freq').value;
+    if(!nick || !freq){ alert('Pon un apodo y elige frecuencia.'); return; }
+    state = { nick, freq, order: shuffle(ITEMS, seedFrom(nick)).map(i=>i.id),
+              answers: {}, started: Date.now() };
+    save(); showItem(0);
+  };
+}
+
+function showItem(pos){
+  if(pos >= state.order.length){ return thanks(); }
+  const it = ITEMS.find(x => x.id === state.order[pos]);
+  const prev = state.answers[it.id] || {};
+  app.innerHTML = `
+  <div class="bar"><i style="width:${Math.round(100*pos/state.order.length)}%"></i></div>
+  <div class="prog">texto ${pos+1} de ${state.order.length}</div>
+  <div class="card">
+    ${it.tipo==='practica' ? '<span class="badge">EJEMPLO DE PRÁCTICA: texto inventado, no es una noticia real</span>' : ''}
+    <p class="titular">${esc(it.titular)}</p>
+    <p class="extracto">${esc(it.extracto)}</p>
+    <p class="meta">medio: ${esc(it.medio)} · año: ${it.anio}${it.tipo==='real' ? ' · vía corpus Menéame (CC BY 4.0)' : ''}</p>
+    ${QS.map(q => `
+      <div class="q">${q.t}</div>
+      ${q.o.map((o,i)=>`
+        <label class="opt"><input type="radio" name="${q.k}" value="${i}" ${prev[q.k]===i?'checked':''}> ${o}</label>
+      `).join('')}
+    `).join('')}
+    <button id="next" ${Object.keys(prev).length<QS.length?'disabled':''}>${pos+1===state.order.length?'Terminar':'Siguiente'}</button>
+  </div>`;
+  QS.forEach(q => {
+    app.querySelectorAll(`input[name=${q.k}]`).forEach(inp => {
+      inp.onchange = () => {
+        const a = state.answers[it.id] = state.answers[it.id] || {};
+        a[q.k] = parseInt(inp.value);
+        document.getElementById('next').disabled = Object.keys(a).length < QS.length;
+        save();
+      };
+    });
+  });
+  document.getElementById('next').onclick = () => { save(); showItem(pos+1); };
+}
+
+function thanks(){
+  const payload = { proyecto:'nivel-medio', version_encuesta:'0.1', nick:state.nick,
+    frecuencia:state.freq, empezada:new Date(state.started).toISOString(),
+    respuestas: state.order.map(id => ({ id, ...state.answers[id] })) };
+  const text = JSON.stringify(payload);
+  app.innerHTML = `
+  <div class="card sent">
+    <h1>¡Listo, ${esc(state.nick)}!</h1>
+    <p>Has marcado los ${state.order.length} textos. Último paso: <b>envíanos tus respuestas</b>
+    (descarga el archivo y pásanoslo, o copia el texto de abajo).</p>
+    <button id="dl">Descargar mis respuestas (.json)</button>
+    <button class="sec" id="cp">Copiar al portapapeles</button>
+    <p class="note" id="cpmsg"></p>
+    <textarea readonly id="out">${esc(text)}</textarea>
+    <p class="note">Gracias: con tu marca a ciegas (sin ver ninguna herramienta) podemos medir
+    cuánto se equivoca un instrumento que analiza cómo está escrito lo que leemos.</p>
+  </div>`;
+  const blob = new Blob([text], {type:'application/json'});
+  document.getElementById('dl').onclick = () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `encuesta-nivel-${state.nick}.json`;
+    a.click();
+  };
+  document.getElementById('cp').onclick = () => {
+    navigator.clipboard.writeText(text)
+      .then(()=>document.getElementById('cpmsg').textContent='Copiado. Pégalo donde nos hayan dicho.')
+      .catch(()=>document.getElementById('cpmsg').textContent='Selecciona el texto de abajo y cópialo a mano.');
+  };
+  localStorage.removeItem('nivel_encuesta');
+}
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// Reanudar si quedó a medias
+const saved = load();
+if(saved && saved.order && Object.keys(saved.answers||{}).length > 0){
+  state = saved;
+  const pos = state.order.findIndex(id => !state.answers[id]);
+  app.innerHTML = `<div class="card"><p>Hola de nuevo, ${esc(state.nick)}: ibas por el texto ${Math.max(pos,0)+1} de ${state.order.length}.</p>
+    <button id="cont">Continuar</button><button class="sec" id="reset">Empezar de cero</button></div>`;
+  document.getElementById('cont').onclick = () => showItem(Math.max(pos,0));
+  document.getElementById('reset').onclick = () => { localStorage.removeItem('nivel_encuesta'); state=null; intro(); };
+} else { intro(); }
+</script>
+</body>
+</html>
