@@ -84,7 +84,9 @@ function intro(){
     const nick = document.getElementById('nick').value.trim();
     const freq = document.getElementById('freq').value;
     if(!nick || !freq){ alert('Pon un apodo y elige frecuencia.'); return; }
-    state = { nick, freq, order: shuffle(ITEMS, seedFrom(nick)).map(i=>i.id),
+    const practicaIds = ITEMS.filter(i=>i.tipo==='practica').map(i=>i.id);
+    const realIds = shuffle(ITEMS.filter(i=>i.tipo==='real'), seedFrom(nick)).map(i=>i.id);
+    state = { nick, freq, order: [...practicaIds, ...realIds],
               answers: {}, started: Date.now() };
     save(); showItem(0);
   };
