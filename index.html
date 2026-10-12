@@ -135,7 +135,9 @@ function thanks(){
     <h1>¡Listo, ${esc(state.nick)}!</h1>
     <p>Has marcado los ${state.order.length} textos. Último paso: <b>envíanos tus respuestas</b>
     (descarga el archivo y pásanoslo, o copia el texto de abajo).</p>
-    <button id="dl">Descargar mis respuestas (.json)</button>
+    <button id="send">Enviar mis respuestas (anónimas)</button>
+    <p class="note" id="sendmsg"></p>
+    <button class="sec" id="dl">Descargar mis respuestas (.json)</button>
     <button class="sec" id="cp">Copiar al portapapeles</button>
     <p class="note" id="cpmsg"></p>
     <textarea readonly id="out">${esc(text)}</textarea>
@@ -148,6 +150,20 @@ function thanks(){
     a.href = URL.createObjectURL(blob);
     a.download = `encuesta-nivel-${state.nick}.json`;
     a.click();
+  };
+  document.getElementById('send').onclick = async () => {
+    const msg = document.getElementById('sendmsg');
+    try {
+      const r = await fetch("https://nivel.nomust.com/v1/encuesta", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: text,
+      });
+      if (!r.ok) throw new Error(r.status);
+      msg.textContent = "Recibidas. Gracias de verdad: tu marca a ciegas entra en la medición.";
+      msg.style.color = "#0a7d33";
+    } catch (e) {
+      msg.textContent = "No se pudo enviar ahora: usa descargar o copiar y pásanoslo.";
+    }
   };
   document.getElementById('cp').onclick = () => {
     navigator.clipboard.writeText(text)
