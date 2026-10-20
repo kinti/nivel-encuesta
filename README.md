@@ -1,17 +1,12 @@
-# Encuesta · ¿qué dice el texto y quién lo dice?
+# Encuesta del aula · ¿de quién es esta palabra?
 
-Encuesta pública y anónima para anotar a ciegas cómo está escrito lo que
-leemos: si lo que se afirma tiene dueño (alguien citado o fuente), si el
-titular promete lo mismo que el texto, y si hay valoraciones presentadas
-como información.
+Encuesta corta (2 minutos, 6 fragmentos reales + 1 de práctica) para el aula:
+una sola pregunta por fragmento — si la palabra marcada es del medio o de
+alguien citado. Es la primera medición humana de la capa "quién dice qué"
+del proyecto Nivel Medio (TFG, instrumento de estructura informativa).
 
-- Los ítems REALES provienen del corpus Menéame (CC BY 4.0), Rodrigo-Ginés
-  et al., Zenodo 19182446, con su medio y año.
-- Los ítems de PRÁCTICA están inventados y etiquetados como tales.
-- Las etiquetas de sesgo del corpus NO se incluyen: quien marca no ve
-  ninguna herramienta ni ninguna etiqueta.
-- Sin datos personales: las respuestas viven en el navegador del participante
-  hasta que este las exporta y las envía voluntariamente.
-
-Parte del proyecto Nivel Medio: medición de estructura informativa en español,
-con error publicado (TFG).
+- Anónima (solo perfil), respuestas a un archivo privado del proyecto.
+- La encuesta general de 27 textos sigue disponible en `larga.html`.
+- Los fragmentos provienen de especímenes reales ya adjudicados en el
+  proyecto; las palabras marcadas no revelan la respuesta de la herramienta
+  (ceguera del anotador).
