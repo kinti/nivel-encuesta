@@ -47,6 +47,7 @@ const ITEMS = [
   { id: "a6", frag: "«Estamos muy preocupados por la deriva del país», <mark>dijo</mark> el portavoz ayer por la tarde." },
 ];
 const OPTS = ["Del medio, en su propia voz", "De alguien citado (el investigador, el juez, el portavoz, el documento…)", "No se puede saber / depende de más contexto"];
+const CANAL = new URLSearchParams(location.search).get("c") || "aula";
 const app = document.getElementById("app");
 const ALL = [PRACTICE, ...ITEMS];
 let state = { perfil: "", respuestas: {}, started: Date.now() };
@@ -103,7 +104,7 @@ function show(i){
 
 function final(){
   const payload = {
-    tipo: "aula-propiedad", version_encuesta: "0.1",
+    tipo: "aula-propiedad", canal: CANAL, version_encuesta: "0.1",
     perfil: state.perfil,
     empezada: new Date(state.started).toISOString(),
     respuestas: ALL.map(it => ({ id: it.id, tipo: it.tipo || "real", respuesta: state.respuestas[it.id] })),

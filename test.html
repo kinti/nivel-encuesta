@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>🧐</text></svg>">
+<title>El test del lector · ¿quién lo dijo?</title>
+<style>
+  :root { --ink:#1a1a1a; --mut:#667; --bg:#f2f0ea; --card:#fff; --acc:#1a56db; --ok:#0a7d33; --bad:#c0392b; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Georgia,'Times New Roman',serif; background:var(--bg); color:var(--ink); line-height:1.55; }
+  main { max-width:620px; margin:0 auto; padding:16px; }
+  h1 { font-size:1.45rem; margin:.2em 0 .3em; }
+  .card { background:var(--card); border:1px solid #e0ddd4; border-radius:12px; padding:18px; margin:12px 0; }
+  .frag { font-size:1.08rem; border-left:3px solid #cfc9bc; padding-left:12px; margin:10px 0 14px; }
+  .frag mark { background:rgba(26,86,219,.16); padding:0 .18rem; font-weight:bold; }
+  .q { font-family:sans-serif; font-weight:700; margin:8px 0 6px; }
+  label.opt { display:block; background:#faf9f6; border:1.5px solid #e0ddd4; border-radius:10px; padding:12px 14px; margin:7px 0; cursor:pointer; font-family:sans-serif; }
+  label.opt:has(input:checked) { border-color:var(--acc); background:#eef4ff; }
+  button { font-family:sans-serif; font-size:1.02rem; background:var(--acc); color:#fff; border:0; border-radius:10px; padding:13px 18px; cursor:pointer; width:100%; margin-top:12px; }
+  button:disabled { opacity:.35; cursor:not-allowed; }
+  button.sec { background:#fff; color:var(--acc); border:1.5px solid var(--acc); }
+  .bar { height:7px; background:#e5e2d9; border-radius:4px; overflow:hidden; margin:10px 0; }
+  .bar i { display:block; height:100%; background:var(--acc); }
+  .prog { font-family:sans-serif; font-size:.8rem; color:var(--mut); text-align:center; }
+  .score { font-size:3rem; font-weight:bold; text-align:center; margin:.3em 0; }
+  .verdict { text-align:center; font-size:1.05rem; margin-bottom:.8em; }
+  .cmp { font-family:sans-serif; font-size:.9rem; margin:4px 0; }
+  .cmp b.ok { color:var(--ok); } .cmp b.no { color:var(--bad); }
+  .note { font-family:sans-serif; font-size:.78rem; color:var(--mut); }
+  textarea { width:100%; height:80px; font-family:sans-serif; padding:10px; border:1px solid #cfcdba; border-radius:8px; }
+  .share { background:#faf9f6; border:1px dashed #b9b4a6; border-radius:10px; padding:12px; font-family:sans-serif; font-size:.92rem; margin:10px 0; }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<p class="note" style="text-align:center;margin-top:1.5rem">La versión seria (sin juego) está en <a href="index.html">la encuesta del aula</a>. Esto es lo mismo, pero con puntos.</p>
+<script>
+const ITEMS = [
+  { id: "a1", frag: "El investigador asegura que el hallazgo es <mark>espectacular</mark> y presenta tres cifras del estudio publicado." },
+  { id: "a2", frag: "El plan del «Grupo Leire» contra la jueza Biedma: ¿atentado o <mark>disparate</mark>? <span class='note'>(titular)</span>" },
+  { id: "a3", frag: "Una física «<mark>totalmente inesperada</mark>» detrás del fenómeno. <span class='note'>(subtítulo de la pieza; más abajo, el investigador dice esa misma frase en una cita con su nombre)</span>" },
+  { id: "a4", frag: "El auto judicial invoca el <mark>«habeas corpus»</mark> y el «Artículo 14» de la Constitución." },
+  { id: "a5", frag: "La <mark>trama</mark> de Leire Díez llegó esta semana a los tribunales, según el auto del juez." },
+  { id: "a6", frag: "«Estamos muy preocupados por la deriva del país», <mark>dijo</mark> el portavoz ayer por la tarde." },
+];
+const OPTS = ["Del medio, en su propia voz", "De alguien citado (investigador, juez, portavoz, documento…)", "No se puede saber / depende"];
+const CANAL = new URLSearchParams(location.search).get("c") || "publico";
+const app = document.getElementById("app");
+let st = { respuestas: {}, started: Date.now() };
+
+function intro(){
+  app.innerHTML = `
+  <div class="card">
+    <h1>¿Quién lo dijo?</h1>
+    <p><b>6 frases reales de prensa española.</b> Una palabra marcada en cada una.
+    Tu misión: ¿la dice el medio en su propia voz, o alguien citado?</p>
+    <p>Sin trampas: <b>no hay respuestas correctas</b> todavía. Esto mide si lees las
+    costuras como las lee nuestra máquina, que analiza cómo están escritas las
+    noticias (para un TFG; sin datos personales, solo este juego).</p>
+    <p class="note">2 minutos · anónimo · al final verás tu puntuación contra la máquina</p>
+    <button id="go">Empezar el reto</button>
+  </div>`;
+  document.getElementById("go").onclick = () => show(0);
+}
+
+function show(i){
+  if (i >= ITEMS.length) return final();
+  const it = ITEMS[i];
+  app.innerHTML = `
+  <div class="bar"><i style="width:${Math.round(100*i/ITEMS.length)}%"></i></div>
+  <div class="prog">frase ${i+1} de ${ITEMS.length}</div>
+  <div class="card">
+    <p class="frag">${it.frag}</p>
+    <div class="q">¿De quién es la palabra marcada?</div>
+    ${OPTS.map((o,j)=>`<label class="opt"><input type="radio" name="r" value="${j}"> ${o}</label>`).join("")}
+    <button id="next" disabled>${i+1===ITEMS.length ? "Ver mi puntuación" : "Siguiente"}</button>
+  </div>`;
+  document.querySelectorAll('input[name=r]').forEach(inp => {
+    inp.onchange = () => { st.respuestas[it.id] = parseInt(inp.value); document.getElementById("next").disabled = false; };
+  });
+  document.getElementById("next").onclick = () => show(i+1);
+}
+
+const MACHINE = { a1:1, a2:0, a3:1, a4:1, a5:0, a6:1 };
+const VERDICTOS = [
+  [6,"Nivel: editor jefe. Lees la voz de cada frase mejor que nuestra máquina. Necesitamos hablar."],
+  [5,"Ojo de halcón lector. Casi clavado."],
+  [4,"Buen ojo. Estás en la zona de la máquina."],
+  [3,"Mitad y mitad: las frases tramposas te han pillado."],
+  [2,"Lector confiado: las comillas te la han liado (a la máquina también le pasa)."],
+  [0,"Las apariencias mandan. Justamente por esto existe el proyecto."],
+];
+
+function final(){
+  let hits = 0;
+  const rows = ITEMS.map(it => {
+    const ok = st.respuestas[it.id] === MACHINE[it.id];
+    hits += ok;
+    return `<div class="cmp">Frase ${it.id.slice(1)}: ${ok ? '<b class="ok">✓ coincides con la máquina</b>' : '<b class="no">✗ la máquina opina otra cosa</b>'}</div>`;
+  }).join("");
+  const v = VERDICTOS.find(x => hits >= x[0])[1];
+  const share = `He coincidido con una máquina en ${hits} de 6 frases reales de prensa en "¿Quién lo dijo?". ¿Lees mejor que yo? ${location.href.split('?')[0]}`;
+  const payload = {
+    tipo: "test-lectura", canal: CANAL, version: "0.1",
+    empezada: new Date(st.started).toISOString(),
+    respuestas: ITEMS.map(it => ({ id: it.id, respuesta: st.respuestas[it.id] })),
+    coincidencias_maquina: hits,
+  };
+  app.innerHTML = `
+  <div class="card">
+    <div class="score">${hits}/6</div>
+    <div class="verdict">${v}</div>
+    ${rows}
+    <p class="note">Recuerda: la máquina no es la verdad, es la que estamos calibrando.
+    Donde no coincides, puede estar equivocada ELLA. Cuéntanoslo abajo si ves el porqué.</p>
+    <textarea id="libre" placeholder="¿Alguna frase donde la máquina se equivoca? ¿Por qué? (opcional)"></textarea>
+    <button id="done">Enviar mi jugada (anónima)</button>
+    <p class="note" id="msg"></p>
+    <div class="share" id="sharebox">${share}</div>
+    <button class="sec" id="cp">Copiar para compartir tu puntuación</button>
+  </div>`;
+  document.getElementById("done").onclick = async () => {
+    payload.libre = document.getElementById("libre").value.trim();
+    const msg = document.getElementById("msg");
+    try {
+      const r = await fetch("https://nivel.nomust.com/v1/encuesta", {
+        method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload) });
+      if (!r.ok) throw new Error(r.status);
+      msg.style.color = "#0a7d33";
+      msg.textContent = "Jugada registrada. Gracias, lector.";
+      document.getElementById("done").disabled = true;
+    } catch (e) { msg.textContent = "No se pudo enviar ahora; tu puntuación sigue en pantalla."; }
+  };
+  document.getElementById("cp").onclick = () => {
+    navigator.clipboard.writeText(share)
+      .then(()=>document.getElementById("cp").textContent = "¡Copiado! Pégalo donde quieras");
+  };
+}
+intro();
+</script>
+</body>
+</html>
